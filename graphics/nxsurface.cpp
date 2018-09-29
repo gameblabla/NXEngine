@@ -237,10 +237,29 @@ NXFormat *NXSurface::Format()
 	return fSurface->format;
 }
 
+extern SDL_Surface *sdl_screen;
+extern SDL_Surface *virtual_screen;
+/* Arcade-Mini */
+#ifdef ARCADE_MINI
+
 void NXSurface::Flip()
 {
-	SDL_Flip(fSurface);
+	//SDL_Flip(fSurface);
+	SDL_BlitSurface(sdl_screen, NULL, virtual_screen, NULL);
+	SDL_Flip(virtual_screen);
 }
+
+#else
+/* RS-97 */
+void NXSurface::Flip()
+{
+	uint32_t *s = (uint32_t*)sdl_screen->pixels;
+	uint32_t *d = (uint32_t*)virtual_screen->pixels;
+	for(uint8_t y = 0; y < 240; y++, s += 160, d += 320) 
+		memmove(d, s, 1280); // double-line fix by pingflood, 2018
+	SDL_Flip(virtual_screen);
+}
+#endif
 
 /*
 void c------------------------------() {}

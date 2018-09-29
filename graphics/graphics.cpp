@@ -18,6 +18,9 @@
 #include "../nx_icon.h"
 #endif
 
+SDL_Surface *sdl_screen;
+SDL_Surface *virtual_screen;
+
 NXSurface *screen = NULL;				// created from SDL's screen
 static NXSurface *drawtarget = NULL;	// target of DrawRect etc; almost always screen
 bool use_palette = false;				// true if we are in an indexed-color video mode
@@ -43,19 +46,6 @@ bool Graphics::init(int resolution)
 	else
 	{
 		screen_bpp = 16;	// the default
-		
-		#ifndef __SDLSHIM__
-		const SDL_VideoInfo *info;
-		
-		// it's faster if we create the SDL screen at the bpp of the real screen.
-		// max fps went from 120 to 160 on my X11 system this way.
-		if ((info = SDL_GetVideoInfo()))
-		{
-			stat("videoinfo: desktop bpp %d", info->vfmt->BitsPerPixel);
-			if (info->vfmt->BitsPerPixel > 8)
-				screen_bpp = info->vfmt->BitsPerPixel;
-		}
-		#endif
 	}
 	
 	palette_reset();
@@ -88,8 +78,6 @@ void c------------------------------() {}
 
 bool Graphics::InitVideo()
 {
-    SDL_Surface *sdl_screen;
-
 #if !defined(_DINGUX) || !defined(_MOTOMAGX) || !defined(_MOTOEZX)
     SDL_Surface *icon;
     icon = SDL_CreateRGBSurfaceFrom((void *)WINDOW_TITLE_ICON.pixel_data,
@@ -116,7 +104,7 @@ bool Graphics::InitVideo()
 	if (drawtarget == screen) drawtarget = NULL;
 	if (screen) delete screen;
 	
-	uint32_t flags = SDL_SWSURFACE | SDL_HWPALETTE;
+	uint32_t flags = SDL_HWSURFACE;
 	if (is_fullscreen) flags |= SDL_FULLSCREEN;
 	
 	#ifndef __SDLSHIM__
@@ -124,8 +112,15 @@ bool Graphics::InitVideo()
 	#endif
 	
 	stat("SDL_SetVideoMode: %dx%d @ %dbpp", SCREEN_WIDTH*SCALE, SCREEN_HEIGHT*SCALE, screen_bpp);
-	sdl_screen = SDL_SetVideoMode(SCREEN_WIDTH*SCALE, SCREEN_HEIGHT*SCALE, screen_bpp, flags);
-	if (!sdl_screen)
+#ifdef ARCADE_MINI
+	//sdl_screen = SDL_SetVideoMode(SCREEN_WIDTH*SCALE, SCREEN_HEIGHT*SCALE, screen_bpp, flags);
+	virtual_screen = SDL_SetVideoMode(480, 272, screen_bpp, flags);
+	sdl_screen = SDL_CreateRGBSurface(SDL_SWSURFACE, 480, 272, screen_bpp, 0,0,0,0);
+#else
+	virtual_screen = SDL_SetVideoMode(320, 480, screen_bpp, flags);
+	sdl_screen = SDL_CreateRGBSurface(SDL_SWSURFACE, 320, 240, screen_bpp, 0,0,0,0);
+#endif
+	/*if (!sdl_screen)
 	{
 		staterr("Graphics::InitVideo: error setting video mode");
 		return 1;
@@ -135,7 +130,7 @@ bool Graphics::InitVideo()
 	{
 		staterr("Graphics::InitVideo: failed to obtain exclusive access to hardware palette");
 		exit(1);
-	}
+	}*/
 	
 	SDL_WM_SetCaption("NXEngine", NULL);
 
